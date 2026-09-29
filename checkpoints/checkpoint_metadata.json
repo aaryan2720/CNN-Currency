@@ -1,0 +1,44 @@
+{
+  "best_epoch": 19,
+  "best_val_accuracy": 44.285714285714285,
+  "best_val_loss": 1.838322387281711,
+  "final_epoch": 20,
+  "final_train_accuracy": 44.29,
+  "final_train_loss": 1.7797,
+  "final_val_accuracy": 40.0,
+  "final_val_loss": 1.8332,
+  "classes": [
+    "Rs_10",
+    "Rs_20",
+    "Rs_50",
+    "Rs_100",
+    "Rs_200",
+    "Rs_500",
+    "Rs_2000"
+  ],
+  "input_shape": [
+    3,
+    64,
+    64
+  ],
+  "total_parameters": 132727,
+  "config": {
+    "batch_size": 16,
+    "epochs": 20,
+    "learning_rate": 0.001,
+    "seed": 42,
+    "train_samples": 280,
+    "val_samples": 70,
+    "num_classes": 7,
+    "classes": [
+      "Rs_10",
+      "Rs_20",
+      "Rs_50",
+      "Rs_100",
+      "Rs_200",
+      "Rs_500",
+      "Rs_2000"
+    ],
+    "total_parameters": 132727
+  }
+}

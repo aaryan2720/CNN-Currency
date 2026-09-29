@@ -1,0 +1,12 @@
+# Core Computational Dependencies
+numpy>=1.24.0
+
+# Image Loading & Preprocessing
+pillow>=9.5.0
+
+# Diagnostic Plotting & Visualizations
+matplotlib>=3.7.0
+
+# Dataset Streaming & API Access
+requests>=2.28.0
+urllib3>=1.26.0
