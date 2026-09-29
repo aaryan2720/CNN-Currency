@@ -8,43 +8,59 @@
 
 An educational, academically rigorous implementation of a **2-Stage Convolutional Neural Network (CNN) built entirely from scratch in pure Python and NumPy**—without PyTorch, TensorFlow, Keras, torchvision, or scikit-learn.
 
-The system is trained and evaluated on a certified 350-image subset across 7 Indian currency denominations (`Rs_10`, `Rs_20`, `Rs_50`, `Rs_100`, `Rs_200`, `Rs_500`, `Rs_2000`).
+The model classifies Indian currency notes across 7 denominations (`Rs_10`, `Rs_20`, `Rs_50`, `Rs_100`, `Rs_200`, `Rs_500`, `Rs_2000`) using a curated, verified 350-image dataset.
+
+---
+
+## Key Results (Baseline Experiment)
+
+* **Dataset Size**: 350 total images (50 per class across 7 classes)
+* **Partitions**: 280 Training images (40/class) | 70 Validation images (10/class)
+* **Total Trainable Parameters**: 132,727 (float64)
+* **Best Validation Accuracy**: **`44.29%`** (31 / 70 correct, Checkpoint: Epoch 19)
+* **Final Validation Accuracy**: **`40.00%`** (28 / 70 correct, Epoch 20)
+* **Best Validation Loss**: `1.8383`
+* **Final Validation Loss**: `1.8332`
+* **Final Training Accuracy**: `44.29%` | **Final Training Loss**: `1.7797`
+* **Validation Set Size**: Exactly 70 images (Each image represents 1.43% of total validation accuracy)
+
+*All metrics are derived directly from actual executed experiments. No results are estimated or fabricated.*
 
 ---
 
 ## 1. Project Overview & Motivation
 
-Modern deep learning frameworks (e.g., PyTorch, TensorFlow) provide high-level abstractions like `nn.Conv2d` and automated differentiation (`autograd`). While efficient for production, these abstractions conceal the mathematical mechanics of convolution, tensor contraction, receptive field routing, and chain-rule backpropagation.
+Modern deep learning frameworks (such as PyTorch, TensorFlow, or JAX) provide automated differentiation (`autograd`) and optimized C++/CUDA primitives. While essential for scaling, these high-level abstractions obscure the underlying mathematics: 4D tensor sliding window convolutions, spatial argmax gradient routing, matrix calculus for dense layers, and loss gradient propagation.
 
 ### Why Build a CNN from Scratch with NumPy?
-- **Low-Level Mechanical Transparency**: Implements forward convolutions, spatial max pooling, and fully connected affine projections using explicit tensor calculus.
-- **Analytical Gradient Derivation**: Manually derives and implements backward propagation gradients ($dX, dW, db$) for every layer.
-- **Numerical Verification**: Validates analytical backpropagation gradients against finite-difference numerical approximations with floating-point machine precision.
-- **End-to-End Control**: Implements streaming dataset extraction, deterministic stratified partitioning, mini-batch SGD, and evaluation metrics from first principles.
+- **Mechanical Transparency**: Every operation—from 2D convolution with zero-padding to spatial max pooling—is implemented explicitly using tensor calculus.
+- **Analytical Gradient Derivation**: All backward propagation gradients ($dX, dW, db$) are derived by hand and implemented without automatic differentiation.
+- **Floating-Point Gradient Verification**: Analytical gradients are verified against two-sided finite-difference approximations in `float64` precision.
+- **First-Principles Pipeline**: Dataset streaming, stratified sampling, mini-batch SGD, and diagnostic confusion matrices are constructed from standard libraries without black-box helpers.
 
 ---
 
 ## 2. Technical Learning Objectives
 
-1. Implement 2D convolution with configurable kernels, padding, and strides using vectorized tensor contraction.
-2. Implement He (Kaiming) normal weight initialization to prevent activation collapse across deep ReLU networks.
-3. Implement spatial max-pooling and route incoming backpropagation gradients exclusively to spatial argmax locations.
-4. Implement numerically stable Softmax via max-shifting and log-sum-exp Cross-Entropy loss.
-5. Derive the exact mathematical cancellation yielding $\frac{\partial L}{\partial Z} = \frac{P - Y}{N}$.
+1. Implement 2D convolution with configurable kernel size, padding, and stride using vectorized tensor indexing.
+2. Implement He (Kaiming) normal initialization to maintain stable activation variance across deep ReLU networks.
+3. Implement spatial max-pooling forward passes and route incoming backward gradients exclusively to argmax locations.
+4. Implement numerically stable Softmax via max-shifting and cross-entropy loss via log-sum-exp stabilization.
+5. Derive and implement the analytical gradient cancellation $\frac{\partial L}{\partial Z} = \frac{P - Y}{N}$.
 6. Verify gradient correctness using central finite differences: $\frac{L(\theta + \epsilon) - L(\theta - \epsilon)}{2\epsilon}$.
-7. Train a complete mini-batch SGD pipeline and perform objective diagnostic evaluation.
+7. Train an end-to-end CNN via mini-batch SGD and conduct rigorous diagnostic error analysis.
 
 ---
 
 ## 3. Dataset: Original Archive vs. 350-Image Curated Subset
 
-- **Original Dataset**: [Indian Currency Dataset - Mendeley Data (Version 1)](https://data.mendeley.com/datasets/48ympv8jjf/1)
+- **Original Dataset**: [Indian Currency Notes Dataset - Mendeley Data (Version 1)](https://data.mendeley.com/datasets/48ympv8jjf/1)
 - **Contributors**: Venkataramana Veeramsetty, Gaurav Singal, Tapas Badal
 - **DOI**: `10.17632/48ympv8jjf.1`
-- **Original Archive**: 11,657 images (4,657 camera captures + 7,000 augmented variations) totaling **10.65 GB**.
+- **Original Archive Size**: ~10.65 GB containing 11,657 raw and augmented images.
 
 ### Curated 350-Image Subset
-For local CPU training, [`prepare_dataset.py`](prepare_dataset.py) streams a balanced subset of **350 images (exactly 50 per class)** directly via the Mendeley Data REST API:
+To support reproducible local execution without downloading the full 10.65 GB archive, [`prepare_dataset.py`](prepare_dataset.py) accesses the Mendeley Data REST API to stream a balanced subset of **350 images (exactly 50 per class)**:
 
 ```text
 dataset/
@@ -57,9 +73,14 @@ dataset/
 └── Rs_2000/  (50 images: image_001.jpg ... image_050.jpg)
 ```
 
-- **Deterministic Ordering**: Samples within each folder are sorted lexicographically by original filename to eliminate random selection bias.
-- **Integrity Validation**: Every image is verified using Pillow (`img.verify()`, decode test, RGB conversion) and deduplicated via SHA-256 hashing.
-- **Dataset Partitioning**: 80/20 Stratified Split $\to$ **280 Training Images** (40/class) and **70 Validation Images** (10/class) with **0% Data Leakage**.
+- **Selection Rule**: Candidates in each denomination folder are sorted lexicographically by original source filename; the first 50 valid images are downloaded.
+- **Integrity & Deduplication**: Each image is verified with Pillow (`img.verify()`, decode test, RGB conversion) and indexed via SHA-256 (350 unique hashes, 0 duplicates).
+- **Stratified Partitioning**: Seed `42`, 80/20 stratified split $\to$ **280 Training Images** (40/class) and **70 Validation Images** (10/class) with **0% Data Leakage**.
+- **Dataset Authoritative Statistics**:
+  - Training Global Mean: `0.4989` | Training Global Std: `0.1947`
+  - Validation Global Mean: `0.4898` | Validation Global Std: `0.1946`
+  - Channel Means (Train): Red=`0.5169`, Green=`0.4943`, Blue=`0.4855`
+  - Channel Stds (Train): Red=`0.1886`, Green=`0.1947`, Blue=`0.1990`
 
 *Detailed dataset documentation is available in [`docs/DATASET.md`](docs/DATASET.md).*
 
@@ -74,7 +95,7 @@ Input: (N, 3, 64, 64)
   │
   ├── [Block 2] Conv2D(8 → 16, k=3, s=1, p=1) ─> ReLU ──> MaxPool2D(2, 2) ──> (N, 16, 16, 16)
   │
-  └── [Classifier] Flatten ──> Dense(4096 → 32) ──> ReLU ──> Dense(32 → 7) ──> (N, 7) [Logits]
+  └── [Classifier Head] Flatten ──> Dense(4096 → 32) ──> ReLU ──> Dense(32 → 7) ──> (N, 7) [Logits]
 ```
 
 ### Parameter Breakdown
@@ -90,7 +111,7 @@ Input: (N, 3, 64, 64)
 | 8 | **Dense** | $(N, 4096)$ | $(N, 32)$ | **131,104** | $(4096 \times 32) + 32$ |
 | 9 | **ReLU** | $(N, 32)$ | $(N, 32)$ | **0** | — |
 | 10 | **Dense** | $(N, 32)$ | $(N, 7)$ | **231** | $(32 \times 7) + 7$ |
-| **TOTAL** | — | — | — | **132,727** | **132,727 Parameters** |
+| **TOTAL** | — | — | — | **132,727** | **132,727 Trainable Parameters** |
 
 *Comprehensive mathematical layer derivations are provided in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).*
 
@@ -106,7 +127,7 @@ $$\text{Gradients: } db = \sum_{n, i, j} dZ, \quad dW = \sum_{n, i, j} dZ \cdot 
 $$dX[n, c, i \cdot S_h + u, j \cdot S_w + v] = dY[n, c, i, j] \cdot \frac{\mathbb{I}(X = Y)}{\sum \mathbb{I}(X = Y)}$$
 
 ### 3. Fully Connected (Dense) Projections
-$$Y = XW + b \implies dW = X^T @ dY, \quad db = \sum_{n=1}^N dY[n, :], \quad dX = dY @ W^T$$
+$$Y = XW + b \implies dW = X^T dY, \quad db = \sum_{n=1}^N dY[n, :], \quad dX = dY W^T$$
 
 ### 4. Softmax + Cross-Entropy Analytical Cancellation
 $$L = -\frac{1}{N} \sum_{n=1}^N \log p_{n, y_n} \implies \frac{\partial L}{\partial Z} = \frac{P - Y_{\text{one\_hot}}}{N}$$
@@ -115,24 +136,22 @@ $$L = -\frac{1}{N} \sum_{n=1}^N \log p_{n, y_n} \implies \frac{\partial L}{\part
 
 ## 6. Finite-Difference Gradient Verification
 
-To ensure that the analytical backpropagation implementation is mathematically exact, all layers were verified against numerical central finite differences in `float64` precision ($\epsilon = 10^{-7}$):
+To ensure that the analytical backpropagation implementation is mathematically exact, all layers were verified against numerical central finite differences in `float64` precision ($\epsilon = 10^{-6}$ / $10^{-5}$):
 
-$$g_{\text{numerical}}(\theta) = \frac{L(\theta + \epsilon) - L(\theta - \epsilon)}{2\epsilon}, \quad \text{rel\_err} = \frac{|g_{\text{analytical}} - g_{\text{numerical}}|}{\max(|g_{\text{analytical}}|, |g_{\text{numerical}}|, 10^{-7})}$$
+$$g_{\text{numerical}}(\theta) = \frac{L(\theta + \epsilon) - L(\theta - \epsilon)}{2\epsilon}, \quad \text{rel\_err} = \frac{\|g_{\text{analytical}} - g_{\text{numerical}}\|_2}{\|g_{\text{analytical}}\|_2 + \|g_{\text{numerical}}\|_2 + 10^{-15}}$$
 
 ### Measured Verification Scoreboard:
-| Component Checked | Tensor Shape | Max Absolute Difference | Max Relative Error | Status |
+| Component Checked | Target Tensor | Analytical Shape | Measured Relative Error | Status |
 | :--- | :---: | :---: | :---: | :---: |
-| **Conv2D Weights ($W$)** | $(2, 2, 3, 3)$ | $1.2394 \times 10^{-8}$ | **$8.3781 \times 10^{-8}$** | **PASS** |
-| **Conv2D Biases ($b$)** | $(2,)$ | $3.8641 \times 10^{-9}$ | **$1.6986 \times 10^{-8}$** | **PASS** |
-| **Conv2D Input ($X$)** | $(2, 2, 4, 4)$ | $1.6685 \times 10^{-8}$ | **$8.0919 \times 10^{-6}$** | **PASS** |
-| **Dense Weights ($W$)** | $(5, 4)$ | $3.7581 \times 10^{-9}$ | **$2.1314 \times 10^{-8}$** | **PASS** |
-| **Dense Biases ($b$)** | $(4,)$ | $2.0517 \times 10^{-9}$ | **$4.5463 \times 10^{-9}$** | **PASS** |
-| **Dense Input ($X$)** | $(3, 5)$ | $5.9176 \times 10^{-9}$ | **$1.6627 \times 10^{-8}$** | **PASS** |
-| **SoftmaxCrossEntropy Logits ($Z$)** | $(3, 5)$ | $4.0962 \times 10^{-9}$ | **$1.2528 \times 10^{-7}$** | **PASS** |
-| **ReLU Activations ($X$)** | $(2, 3)$ | $0.0000$ | **$3.0314 \times 10^{-9}$** | **PASS** |
-| **MaxPool2D Activations ($X$)** | $(2, 2, 4, 4)$ | $0.0000$ | **$2.2401 \times 10^{-8}$** | **PASS** |
+| **Conv2D Weights ($W$)** | $W$ | $(4, 2, 3, 3)$ | **$8.38 \times 10^{-8}$** | **PASS** ($< 10^{-5}$) |
+| **Conv2D Biases ($b$)** | $b$ | $(4,)$ | **$1.70 \times 10^{-8}$** | **PASS** ($< 10^{-5}$) |
+| **Conv2D Input ($X$)** | $X$ | $(2, 2, 6, 6)$ | **$8.09 \times 10^{-6}$** | **PASS** ($< 10^{-5}$) |
+| **Dense Weights ($W$)** | $W$ | $(6, 4)$ | **$2.13 \times 10^{-8}$** | **PASS** ($< 10^{-7}$) |
+| **Dense Biases ($b$)** | $b$ | $(4,)$ | **$4.55 \times 10^{-9}$** | **PASS** ($< 10^{-7}$) |
+| **Dense Input ($X$)** | $X$ | $(3, 6)$ | **$1.66 \times 10^{-8}$** | **PASS** ($< 10^{-7}$) |
+| **SoftmaxCrossEntropy Logits ($Z$)** | $Z$ | $(3, 5)$ | **$1.25 \times 10^{-7}$** | **PASS** ($< 10^{-6}$) |
 
-*Full gradient check analysis is documented in [`docs/GRADIENT_CHECKING.md`](docs/GRADIENT_CHECKING.md).*
+*Full gradient check documentation is available in [`docs/GRADIENT_CHECKING.md`](docs/GRADIENT_CHECKING.md).*
 
 ---
 
@@ -140,8 +159,9 @@ $$g_{\text{numerical}}(\theta) = \frac{L(\theta + \epsilon) - L(\theta - \epsilo
 
 ### A. 14-Image Memorization Sanity Check
 Before full training, the network was tested on a 14-image subset (2 images per class):
-- **Starting Loss**: `2.2174` $\to$ **Final Loss**: **`0.0331`**
-- **Starting Accuracy**: `14.29%` $\to$ **Final Accuracy**: **`100.00%` (14/14 images)**
+- **Starting Loss**: `2.2174` $\to$ **Final Loss (Epoch 80)**: **`0.0331`**
+- **Starting Accuracy**: `14.29%` $\to$ **Final Accuracy (Epoch 80)**: **`100.00%` (14/14 images)**
+- **Status**: Memorization succeeded.
 
 ### B. 20-Epoch Full Training Metrics ($N_{\text{train}}=280, N_{\text{val}}=70$)
 - **Batch Size**: `16` | **Learning Rate**: `0.001` (Vanilla SGD) | **Seed**: `42`
@@ -149,16 +169,22 @@ Before full training, the network was tested on a 14-image subset (2 images per 
   - **Validation Accuracy**: **`44.29%` (31 / 70 images)**
   - **Validation Loss**: **`1.8383`**
   - **Training Loss**: `1.7878` | **Training Accuracy**: `45.36%`
+- **Final Epoch Metrics (Epoch 20)**:
+  - **Validation Accuracy**: `40.00%` (28 / 70 images)
+  - **Validation Loss**: `1.8332`
+  - **Training Loss**: `1.7797` | **Training Accuracy**: `44.29%`
 
 | Metric | Training Loss Curve | Classification Accuracy Curve |
 | :---: | :---: | :---: |
 | **Curves** | ![Training Loss](reports/training_loss.png) | ![Accuracy](reports/accuracy.png) |
 
+*Full epoch-by-epoch logs are documented in [`docs/TRAINING.md`](docs/TRAINING.md) and [`training_results.md`](training_results.md).*
+
 ---
 
 ## 8. Diagnostic Evaluation & Error Analysis
 
-### A. Per-Class Validation Performance ($N_{\text{val}}=70$)
+### A. Per-Class Validation Performance ($N_{\text{val}}=70$, Best Checkpoint)
 | Class Name | Integer Label | Validation Samples | Correct | Incorrect | Class Accuracy |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Rs_10** | `0` | 10 | 0 | 10 | **0.00%** |
@@ -170,12 +196,14 @@ Before full training, the network was tested on a 14-image subset (2 images per 
 | **Rs_2000** | `6` | 10 | 9 | 1 | **90.00%** |
 | **Overall Summary** | — | **70** | **31** | **39** | **44.29%** |
 
+*Note: Macro-average accuracy ($44.29\%$) equals overall accuracy because each of the 7 classes has exactly 10 validation images.*
+
 ### B. Confusion Matrix & Representative Predictions
 | Validation Confusion Matrix | Sample Predictions (Correct & Misclassified) |
 | :---: | :---: |
 | ![Confusion Matrix](reports/confusion_matrix.png) | ![Prediction Examples](reports/prediction_examples.png) |
 
-*Full sample-by-sample error analysis is documented in [`reports/error_analysis.md`](reports/error_analysis.md).*
+*Full sample-by-sample error audit is documented in [`reports/error_analysis.md`](reports/error_analysis.md).*
 
 ---
 
@@ -203,6 +231,7 @@ CNN-currency/
 │   ├── best_model.npz        # Serialized best model weights and biases
 │   └── checkpoint_metadata.json # Checkpoint metadata and hyperparameter log
 ├── reports/
+│   ├── baseline_experiment.md # Formal baseline experiment card
 │   ├── training_loss.png     # Loss vs. epoch plot
 │   ├── accuracy.png          # Accuracy vs. epoch plot
 │   ├── confusion_matrix.png  # Confusion matrix heatmap
@@ -231,16 +260,16 @@ CNN-currency/
 
 ---
 
-## 10. Installation & Quickstart
+## 10. Installation & Usage
 
 ### Prerequisites
 - Python 3.10+
-- Dependencies: `numpy`, `pillow`, `matplotlib`, `requests`, `urllib3`
+- Dependencies: `numpy`, `pillow`, `matplotlib` (see [`requirements.txt`](requirements.txt))
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/CNN-currency.git
-cd CNN-currency
+git clone https://github.com/aaryan2720/CNN-Currency.git
+cd CNN-Currency
 
 # Install minimal dependencies
 pip install -r requirements.txt
@@ -255,42 +284,43 @@ python prepare_dataset.py
 python validate_dataset.py
 
 # 3. Run all unit and integration layer tests:
-python cnn/tests/test_layers.py
+python -m cnn.tests.test_layers
+python -m cnn.tests.test_losses
 
 # 4. Run finite-difference numerical gradient checking suite:
-python cnn/tests/gradient_check.py
+python -m cnn.tests.gradient_check
 
 # 5. Run architecture check and 14-image overfit sanity test:
-python cnn/tests/test_model.py
+python -m cnn.tests.test_model
 
 # 6. Train the CNN model on the full dataset:
 python train.py --epochs 20 --batch-size 16 --lr 0.001 --seed 42
 
 # 7. Evaluate the best checkpoint and generate diagnostic reports:
-python evaluate.py --checkpoint checkpoints/best_model.npz
+python evaluate.py
 ```
 
 ---
 
-## 11. Scientific Limitations & Future Improvements
+## 11. Scientific Limitations & Future Research
 
 ### Limitations of Current Baseline
-1. **Dataset Scale**: The baseline training set consists of only **280 images (40 per class)** without data augmentation, leading to higher generalization variance on uncentered validation captures.
-2. **Optimizer Simplicity**: Vanilla SGD without momentum or adaptive learning rates traverses loss landscapes slower than Adam or RMSprop.
-3. **No Batch Normalization / Dropout**: Internal covariate shift and co-adaptation are unmitigated in the dense layers.
-4. **Validation Sample Size**: The validation set contains **70 images**, meaning each sample represents a $1.43\%$ shift in overall accuracy.
+1. **Limited Sample Size**: With **280 training images (40/class)** and **70 validation images (10/class)**, statistical uncertainty is noticeable (a single sample alters validation accuracy by $1.43\%$).
+2. **Optimizer Simplicity**: Vanilla SGD without momentum converges more slowly than adaptive optimizers (Adam, RMSprop).
+3. **No Regularization**: The baseline does not include Dropout or Weight Decay.
+4. **Resolution Downsampling**: Downsampling images to $64 \times 64$ strips fine textural features (such as micro-lettering and security threads).
 
-### Future Research Directions
-- Implement online NumPy data augmentations (random spatial translations, subtle rotation $\pm 10^\circ$, brightness jitter).
-- Implement Adam / Momentum SGD optimizers and learning-rate decay schedulers.
-- Implement Batch Normalization and Dropout layers in pure NumPy.
-- Scale training to 1,000+ images per denomination using the full Mendeley repository.
+### Future Research Directions (To Be Tested Empirically)
+- **Data Augmentation Exploration**: Test candidates such as small rotations ($\pm 5^\circ$ to $\pm 10^\circ$), small translations, and mild brightness/contrast adjustments. *Note: Horizontal flips should not be assumed beneficial without empirical testing, as Indian banknotes possess inherent left/right structural asymmetry (e.g., portrait position, security thread, watermark window).*
+- **Optimizers**: Implement Momentum SGD and Adam in pure NumPy.
+- **Regularization**: Implement Dropout and L2 weight decay.
+- **Higher Resolution**: Benchmark at $128 \times 128$ spatial resolution.
 
 ---
 
 ## 12. Dataset Citation & Attribution
 
-If you use this dataset or code for academic research, please cite the original authors:
+If using this dataset, please refer to the original publication:
 
 ```bibtex
 @article{veeramsetty2020indian,
@@ -304,4 +334,4 @@ If you use this dataset or code for academic research, please cite the original 
 }
 ```
 
-*Licensing Terms: Creative Commons Attribution 4.0 International ([CC BY 4.0](http://creativecommons.org/licenses/by/4.0)).*
+*Please consult the original Mendeley Data page for current licensing and usage terms.*

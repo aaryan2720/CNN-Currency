@@ -10,7 +10,7 @@
 - **Contributors**: Venkataramana Veeramsetty, Gaurav Singal, Tapas Badal
 - **Original Dataset Dimensions**: 11,657 images (4,657 raw camera captures + 7,000 augmented variations) across 7 denominations.
 - **Original Archive Size**: **10.65 GB** (`10,658,785,013` bytes).
-- **License**: Creative Commons Attribution 4.0 International (CC BY 4.0).
+- **License / Terms of Use**: Please consult the original Mendeley Data page for current licensing and usage terms.
 
 ---
 

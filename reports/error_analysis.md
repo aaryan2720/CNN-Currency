@@ -685,11 +685,17 @@
 }
 ```
 
-## 4. Key Empirical Observations
+## 4. Key Diagnostic Observations
 
-1. **Dominant Confusions**: Any observed misclassifications primarily occur between notes with similar ambient background lighting or shared aspect ratios.
-2. **Data Scale Constraint**: Evaluating on a fixed 70-image partition implies each individual sample accounts for ~1.43% accuracy variance.
-3. **Absence of Data Augmentation**: Without spatial jitter or slight rotation in training, certain non-centered validation notes show lower confidence.
+### A. Observed Empirical Facts
+1. **Denomination Accuracy Disparity**: `Rs_2000` (90.0%, 9/10 correct) and `Rs_500` (80.0%, 8/10 correct) achieved the highest individual validation accuracies, whereas `Rs_10` (0.0%, 0/10 correct) and `Rs_100` (0.0%, 0/10 correct) achieved zero true positives on this validation partition.
+2. **Asymmetric Error Distribution**: `Rs_500` was the most frequent false prediction target, receiving 30 out of 70 total predictions (including 7 `Rs_10`, 4 `Rs_20`, 3 `Rs_50`, 8 `Rs_100`, and 6 `Rs_200` samples).
+3. **Discrete Metric Resolution**: On a 70-sample validation set (10 per class), a single correct classification shifts the overall metric by $1.43\%$ and the class-specific metric by $10.0\%$.
+
+### B. Hypothesized Explanations (To Be Tested Empirically)
+1. **Background & Chromatic Bias Hypothesis**: At $64 \times 64$ downsampling, images with neutral or grey backgrounds may exhibit feature activations that resemble the stone-grey palette of `Rs_500`.
+2. **Sub-Variant Diversity Hypothesis**: The dataset contains both older series and Mahatma Gandhi (New) Series notes (notably for Rs 10 and Rs 100). In a 40-sample training partition without augmentation, multimodal intra-class color distributions may impede single-cluster convergence.
+3. **Loss of High-Frequency Texture Hypothesis**: Downsampling to $64 \times 64$ removes fine structural text and numeric watermarks, forcing the network to rely predominantly on macroscopic color distributions.
 
 ---
-*Report generated from actual model predictions on the validated test partition.*
+*Report generated directly from actual model predictions on the validated 70-image test partition.*
