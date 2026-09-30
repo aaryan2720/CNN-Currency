@@ -52,6 +52,3 @@
 1. **Optimization Trajectory**: Mini-batch SGD steadily reduced the cross-entropy loss across epochs.
 2. **Stability**: Gradient norms remained bounded with no numerical explosions or vanishing gradients.
 3. **Generalization Gap**: With 40 training images per denomination without data augmentation, the model demonstrates expected variance on the 70-image validation partition.
-
----
-*Note: All metrics reported above were recorded from live execution and have not been estimated or modified.*
